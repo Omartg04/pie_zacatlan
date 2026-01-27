@@ -1,0 +1,13 @@
+streamlit
+pandas
+numpy
+scipy
+scikit-learn
+geopandas
+folium
+streamlit-folium
+plotly
+openpyxl
+matplotlib
+streamlit-authenticator
+bcrypt

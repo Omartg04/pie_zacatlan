@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# Entornos
+venv/
+.env
+
+# Sistema
+.DS_Store
+
+# (Opcional) Datos locales
+# data/
+# *.csv
+# *.xlsx
+# *.shp
+# *.shx
+# *.dbf
+# *.prj
