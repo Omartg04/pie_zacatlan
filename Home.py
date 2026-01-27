@@ -7,7 +7,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# CSS personalizado para mejorar la estética (Badges, Sombras, Botones)
+# CSS personalizado para mejorar la estética
 st.markdown("""
 <style>
     /* Espaciado general */
@@ -25,7 +25,7 @@ st.markdown("""
     }
     div.stButton > button:first-child:hover {
         transform: scale(1.02);
-        border-color: #5D3FD3; /* Morado Institucional */
+        border-color: #5D3FD3;
         color: #5D3FD3;
     }
 </style>
@@ -38,72 +38,64 @@ with col1:
     st.markdown("### Municipio de Zacatlán | Enero 2026")
 with col2:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.metric("Estatus", "Activo", delta="Fase 1")
+    st.metric("Estatus", "Fase 1", delta="Planeación")
 
 st.markdown("---")
 
 # --- NOTIFICACIÓN DE ESTATUS ---
-st.success("✅ **PROYECTO EN CURSO** • Módulo de Planeación Logística habilitado.")
+st.success("✅ **SISTEMA ACTIVO** • Módulo de Planeación habilitado. Resto de módulos en espera de levantamiento.")
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 1. MÓDULO PÚBLICO (RESULTADOS) - DESTACADO
+# MÓDULOS OPERATIVOS (GRID 2x2)
 # ==============================================================================
-st.markdown("### 🏆 Tablero Ejecutivo")
+st.markdown("### 🛠️ Suite Operativa")
 
-with st.container(border=True):
-    # Banner Azul/Morado para Resultados
-    st.markdown("""
-        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    padding: 2rem; border-radius: 10px; color: white; margin-bottom: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
-            <h2 style='margin: 0; color: white;'>📈 Resultados 2025-2026</h2>
-            <p style='margin: 0.5rem 0 0 0; opacity: 0.95; font-size: 1.1rem;'>
-                Visualización interactiva, comparativos históricos y careos.
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    c1, c2, c3 = st.columns(3)
-    with c1: st.markdown("**✓** Preferencia Bruta/Efectiva")
-    with c2: st.markdown("**✓** Análisis de Atributos")
-    with c3: st.markdown("**✓** Escenarios y Careos")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Botón (Desactivado visualmente hasta que crees la página)
-    st.button("🔒 Esperando Carga de Datos (Resultados)", disabled=True, use_container_width=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ==============================================================================
-# 2. MÓDULOS TÉCNICOS (GRID)
-# ==============================================================================
-st.markdown("### 🛠️ Módulos Operativos")
-
-# Usamos columnas para crear una rejilla
+# FILA 1: Planeación y Monitoreo
 col_a, col_b = st.columns(2)
 
-# --- CARD PLANEACIÓN (ACTIVO) ---
+# --- 1. PLANEACIÓN (ACTIVO) ---
 with col_a:
     with st.container(border=True):
-        st.markdown("#### 🗺️ Planeación")
-        st.caption("Diseño muestral, cartografía y rutas.")
-        st.progress(100, text="Completado")
+        st.markdown("#### 🗺️ 1. Planeación")
+        st.caption("Diseño de muestra, asignación de manzanas y rutas lógicas.")
+        st.progress(100, text="Habilitado")
         
         # Enlace directo a la página que SÍ existe
         st.page_link("pages/1_🗺️_Planeacion.py", label="▶️ ACCEDER AL MAPA", use_container_width=True)
 
-# --- CARD MONITOREO (FUTURO) ---
+# --- 2. MONITOREO (PENDIENTE) ---
 with col_b:
     with st.container(border=True):
-        st.markdown("#### 📊 Monitoreo")
-        st.caption("Supervisión GPS y avance en campo.")
-        st.progress(0, text="Pendiente de inicio")
+        st.markdown("#### 📊 2. Monitoreo GPS")
+        st.caption("Supervisión en tiempo real del equipo de campo y cobertura.")
+        st.progress(0, text="En espera de arranque")
         
-        st.button("🔒 Iniciar Levantamiento", disabled=True, use_container_width=True, key="btn_monitoreo")
+        st.button("🔒 Iniciar Supervisión", disabled=True, use_container_width=True, key="btn_mon")
+
+# FILA 2: Auditoría y Resultados
+col_c, col_d = st.columns(2)
+
+# --- 3. AUDITORÍA (PENDIENTE) ---
+with col_c:
+    with st.container(border=True):
+        st.markdown("#### 🔍 3. Auditoría")
+        st.caption("Validación de audios, revisión de lógica y control de calidad.")
+        st.progress(0, text="Requiere datos")
+        
+        st.button("🔒 Panel de Calidad", disabled=True, use_container_width=True, key="btn_audit")
+
+# --- 4. RESULTADOS (PENDIENTE) ---
+with col_d:
+    with st.container(border=True):
+        st.markdown("#### 📈 4. Resultados")
+        st.caption("Tableros finales, cruces de variables, sábanas y careos.")
+        st.progress(0, text="Al finalizar captura")
+        
+        st.button("🔒 Ver Dashboard", disabled=True, use_container_width=True, key="btn_res")
 
 # ==============================================================================
-# 3. PROPUESTA DE VALOR (INTELIGENCIA)
+# PROPUESTA DE VALOR (INTELIGENCIA)
 # ==============================================================================
 st.divider()
 st.markdown("### 🚀 Fase 2: Inteligencia Territorial")
@@ -129,7 +121,8 @@ with st.container(border=True):
     with c_prop2:
         st.markdown("""
         * 🗺️ **Mapa de Swing/Bastiones**
-        * 🔌 **Directorio de Contactos** * 🤖 **Alertas Estratégicas**
+        * 🔌 **Directorio de Contactos**
+        * 🤖 **Alertas Estratégicas**
         """)
 
 # --- PIE DE PÁGINA ---
