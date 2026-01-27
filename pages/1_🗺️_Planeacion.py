@@ -150,7 +150,6 @@ st.divider()
 with st.sidebar:
     st.header("⚙️ Configuración")
     total_personal = st.number_input("Encuestadores:", min_value=1, value=30)
-    # DEFAULT 6 BRIGADAS AQUÍ 👇
     n_rutas = st.slider("Brigadas/Rutas:", 1, 8, 6)
     
     with st.spinner(f"Optimizando..."):
@@ -214,16 +213,20 @@ def get_style(feature):
     gid = feature['properties']['Grupo_ID']
     return {'fillColor': COLORS[(gid - 1) % len(COLORS)], 'color': 'black', 'weight': stroke_weight, 'fillOpacity': 0.6}
 
-# IMPORTANTE: Guardamos el objeto geo_json para pasárselo al buscador
+# Guardamos el objeto geo_json para el buscador
 geo_json = folium.GeoJson(
     gdf_view,
-    name="Secciones",
+    name="Secciones (Polígonos)",
     style_function=get_style,
     tooltip=folium.GeoJsonTooltip(fields=['seccion', 'Localidad_Full', 'Grupo_ID', 'Meta'], localize=True),
     popup=folium.GeoJsonPopup(fields=['seccion'])
 ).add_to(m)
 
-# 3. PINES MULTIPLES POR SECCION
+# 3. PINES MULTIPLES POR SECCION (AGRUPADOS EN CAPA)
+# --- CAMBIO IMPORTANTE: Creamos un FeatureGroup ---
+# Esto permite prender/apagar los pines desde el menú de capas del mapa
+layer_pines = folium.FeatureGroup(name="📍 Pines Localidades", show=True)
+
 for idx, row in df_pines_view.iterrows():
     loc_name = row['Localidad']
     sec_id = row['seccion']
@@ -238,16 +241,16 @@ for idx, row in df_pines_view.iterrows():
             location=[c_lat, c_lon],
             tooltip=f"<b>{loc_name}</b><br>Sección {sec_id}<br>{source}",
             icon=folium.Icon(color=icon_color, icon='pushpin', prefix='glyphicon')
-        ).add_to(m)
+        ).add_to(layer_pines) # Se añade al GRUPO, no directo al mapa
         
     else:
-        # PINES ESTIMADOS (CON RANDOM SEED FIJO)
+        # PINES ESTIMADOS
         geom = gdf_view[gdf_view['seccion'] == sec_id]
         if not geom.empty:
             c_lat = geom.geometry.centroid.y.values[0]
             base_lon = geom.geometry.centroid.x.values[0]
             
-            random.seed(int(sec_id) + idx) # <--- FIX LOOP
+            random.seed(int(sec_id) + idx) 
             offset_lat = random.uniform(-0.0015, 0.0015)
             offset_lon = random.uniform(-0.0015, 0.0015)
             
@@ -255,7 +258,10 @@ for idx, row in df_pines_view.iterrows():
                 location=[c_lat + offset_lat, base_lon + offset_lon],
                 tooltip=f"<b>{loc_name}</b><br>Sección {sec_id}<br>📐 Estimada",
                 icon=folium.Icon(color='red', icon='info-sign', prefix='glyphicon')
-            ).add_to(m)
+            ).add_to(layer_pines) # Se añade al GRUPO
+
+# Añadimos el grupo al mapa
+layer_pines.add_to(m)
 
 # 4. MANZANAS
 ver_manz = st.sidebar.checkbox("Mostrar Traza Urbana", value=(filtro_grupo != "Todas"))
@@ -276,6 +282,8 @@ Search(
 ).add_to(m)
 
 Fullscreen().add_to(m)
+
+# LAYER CONTROL (Esto es lo que permite apagar los pines)
 folium.LayerControl().add_to(m)
 
 st_folium(m, height=600, use_container_width=True)
