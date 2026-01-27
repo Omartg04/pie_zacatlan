@@ -33,7 +33,7 @@ def limpiar_y_convertir_universal(coord):
     return 0
 
 # ==============================================================================
-# 1. CARGA DE DATOS (AHORA GENERA df_pines SEPARADO)
+# 1. CARGA DE DATOS
 # ==============================================================================
 @st.cache_data
 def cargar_datos_zacatlan():
@@ -72,17 +72,12 @@ def cargar_datos_zacatlan():
     df_csv[col_mza] = pd.to_numeric(df_csv[col_mza], errors='coerce').fillna(0)
     df_csv[col_loc] = df_csv[col_loc].fillna("").astype(str)
 
-    # -------------------------------------------------------------------------
-    # NUEVO: PREPARAR EL DATAFRAME DE PINES (ANTES DE AGRUPAR)
-    # -------------------------------------------------------------------------
-    # Copiamos el CSV original para tener el detalle por localidad
+    # PREPARAR DATAFRAME DE PINES (DETALLE)
     df_pines = df_csv[[col_sec, col_loc, col_enc]].copy()
     df_pines.columns = ['seccion', 'Localidad', 'Encuestas']
     df_pines['KEY_LOC'] = df_pines['Localidad'].astype(str).str.upper().str.strip()
 
-    # -------------------------------------------------------------------------
-    # PROCESAMIENTO CATÁLOGO Y CRUCE DE PINES
-    # -------------------------------------------------------------------------
+    # PROCESAMIENTO CATÁLOGO
     try:
         try: df_coords = pd.read_csv(loc_coords_path, encoding='utf-8')
         except: df_coords = pd.read_csv(loc_coords_path, encoding='latin-1')
@@ -100,16 +95,10 @@ def cargar_datos_zacatlan():
             df_coords_clean = df_coords[(df_coords['CAT_LAT'] != 0) & (df_coords['CAT_LON'] != 0)].copy()
             df_coords_clean = df_coords_clean[['KEY_LOC', 'CAT_LAT', 'CAT_LON']].drop_duplicates(subset=['KEY_LOC'])
             
-            # Cruzamos los PINES individuales con el catálogo
             df_pines = df_pines.merge(df_coords_clean, on='KEY_LOC', how='left')
-        
-    except Exception as e:
-        print(f"Error coords: {e}")
+    except Exception as e: print(f"Error coords: {e}")
 
-    # -------------------------------------------------------------------------
-    # AGRUPAMIENTO (PARA EL MAPA DE POLIGONOS)
-    # -------------------------------------------------------------------------
-    # Concatenamos nombres para el tooltip del polígono
+    # AGRUPAMIENTO (PARA POLIGONOS)
     agg_rules = {
         col_enc: 'sum',
         col_mza: 'sum',
@@ -118,12 +107,11 @@ def cargar_datos_zacatlan():
     df_agrupado = df_csv.groupby(col_sec).agg(agg_rules).reset_index()
     df_agrupado.columns = ['seccion', 'Meta', 'Manzanas_Obj', 'Localidad_Full']
 
-    # Unión Final
     gdf_final = gdf_clean.merge(df_agrupado, on='seccion', how='left')
     gdf_final['Meta'] = gdf_final['Meta'].fillna(0).astype(int)
     gdf_final['Manzanas_Obj'] = gdf_final['Manzanas_Obj'].fillna(0).astype(int)
 
-    # 4. CONTEXTO
+    # CONTEXTO
     try:
         gdf_raw = gpd.read_file(shp_raw_path)
         col_mun = next((c for c in gdf_raw.columns if 'MUN' in c.upper()), None)
@@ -143,7 +131,7 @@ def cargar_datos_zacatlan():
     except:
         gdf_contexto = gpd.GeoDataFrame()
 
-    return gdf_final, gdf_m, gdf_contexto, df_pines # <--- RETORNAMOS LOS PINES APARTE
+    return gdf_final, gdf_m, gdf_contexto, df_pines
 
 try:
     gdf_secciones, gdf_manzanas, gdf_contexto, df_pines_raw = cargar_datos_zacatlan()
@@ -162,6 +150,7 @@ st.divider()
 with st.sidebar:
     st.header("⚙️ Configuración")
     total_personal = st.number_input("Encuestadores:", min_value=1, value=30)
+    # DEFAULT 6 BRIGADAS AQUÍ 👇
     n_rutas = st.slider("Brigadas/Rutas:", 1, 8, 6)
     
     with st.spinner(f"Optimizando..."):
@@ -174,15 +163,11 @@ with st.sidebar:
     grupos_disp = sorted(gdf_view['Grupo_ID'].unique())
     filtro_grupo = st.selectbox("🔍 Filtrar:", ["Todas"] + list(grupos_disp))
     
-    # FILTRADO DE CAPAS
     if filtro_grupo != "Todas":
         gdf_view = gdf_view[gdf_view['Grupo_ID'] == filtro_grupo]
-        
-        # Filtramos manzanas
         gdf_manzanas_view = gpd.sjoin(gdf_manzanas, gdf_view[['geometry']], how='inner', predicate='intersects')
         gdf_manzanas_view = gdf_manzanas_view.loc[:, ~gdf_manzanas_view.columns.duplicated()]
         
-        # FILTRAMOS PINES (Solo los de las secciones visibles)
         secciones_visibles = gdf_view['seccion'].unique()
         df_pines_view = df_pines_raw[df_pines_raw['seccion'].isin(secciones_visibles)]
         
@@ -190,7 +175,7 @@ with st.sidebar:
         stroke_weight = 3
     else:
         gdf_manzanas_view = gdf_manzanas
-        df_pines_view = df_pines_raw # Todos los pines
+        df_pines_view = df_pines_raw
         zoom_start = 12
         stroke_weight = 1
 
@@ -229,7 +214,8 @@ def get_style(feature):
     gid = feature['properties']['Grupo_ID']
     return {'fillColor': COLORS[(gid - 1) % len(COLORS)], 'color': 'black', 'weight': stroke_weight, 'fillOpacity': 0.6}
 
-folium.GeoJson(
+# IMPORTANTE: Guardamos el objeto geo_json para pasárselo al buscador
+geo_json = folium.GeoJson(
     gdf_view,
     name="Secciones",
     style_function=get_style,
@@ -237,12 +223,11 @@ folium.GeoJson(
     popup=folium.GeoJsonPopup(fields=['seccion'])
 ).add_to(m)
 
-# 3. PINES MULTIPLES POR SECCION (CORREGIDO PARA EVITAR LOOP)
+# 3. PINES MULTIPLES POR SECCION
 for idx, row in df_pines_view.iterrows():
     loc_name = row['Localidad']
     sec_id = row['seccion']
     
-    # ¿Tenemos coordenada real del catálogo?
     if 'CAT_LAT' in row and pd.notnull(row['CAT_LAT']) and row['CAT_LAT'] != 0:
         c_lat = row['CAT_LAT']
         c_lon = row['CAT_LON']
@@ -256,28 +241,22 @@ for idx, row in df_pines_view.iterrows():
         ).add_to(m)
         
     else:
-        # SI NO HAY COORDENADA EXACTA EN CATALOGO:
+        # PINES ESTIMADOS (CON RANDOM SEED FIJO)
         geom = gdf_view[gdf_view['seccion'] == sec_id]
         if not geom.empty:
             c_lat = geom.geometry.centroid.y.values[0]
             base_lon = geom.geometry.centroid.x.values[0]
             
-            # --- FIX DEL LOOP INFINITO ---
-            # Usamos el ID de la sección como "semilla" para el random.
-            # Esto garantiza que el "offset" sea siempre el mismo para esta sección.
-            random.seed(int(sec_id) + idx) # Sumamos idx para que si hay 2 pines en la misma sección, no caigan encima
-            
+            random.seed(int(sec_id) + idx) # <--- FIX LOOP
             offset_lat = random.uniform(-0.0015, 0.0015)
             offset_lon = random.uniform(-0.0015, 0.0015)
             
-            final_lat = c_lat + offset_lat
-            final_lon = base_lon + offset_lon
-            
             folium.Marker(
-                location=[final_lat, final_lon],
+                location=[c_lat + offset_lat, base_lon + offset_lon],
                 tooltip=f"<b>{loc_name}</b><br>Sección {sec_id}<br>📐 Estimada",
                 icon=folium.Icon(color='red', icon='info-sign', prefix='glyphicon')
             ).add_to(m)
+
 # 4. MANZANAS
 ver_manz = st.sidebar.checkbox("Mostrar Traza Urbana", value=(filtro_grupo != "Todas"))
 if ver_manz and not gdf_manzanas_view.empty:
@@ -287,16 +266,24 @@ if ver_manz and not gdf_manzanas_view.empty:
         tooltip="Manzana"
     ).add_to(m)
 
+# --- CONTROLES Y BUSCADOR ---
+Search(
+    layer=geo_json,
+    geom_type="Polygon",
+    placeholder="🔎 Buscar Sección",
+    collapse=False,
+    search_label="seccion"
+).add_to(m)
+
 Fullscreen().add_to(m)
 folium.LayerControl().add_to(m)
+
 st_folium(m, height=600, use_container_width=True)
 
 # TABLA FINAL
 col1, col2 = st.columns([2, 1])
 with col1:
     st.subheader("📋 Detalle por Localidad")
-    # Mostramos el detalle fino
-    # Unimos con el grupo asignado para que se vea la ruta
     df_detalle = df_pines_view.merge(gdf_view[['seccion', 'Grupo_ID']], on='seccion', how='left')
     df_detalle = df_detalle[['Grupo_ID', 'seccion', 'Localidad', 'Encuestas']].sort_values(['Grupo_ID', 'seccion'])
     st.dataframe(df_detalle, use_container_width=True, hide_index=True)
