@@ -162,7 +162,7 @@ st.divider()
 with st.sidebar:
     st.header("⚙️ Configuración")
     total_personal = st.number_input("Encuestadores:", min_value=1, value=30)
-    n_rutas = st.slider("Brigadas/Rutas:", 1, 8, 4)
+    n_rutas = st.slider("Brigadas/Rutas:", 1, 8, 6)
     
     with st.spinner(f"Optimizando..."):
         gdf_view = balanced_cluster_optimization(gdf_secciones.copy(), n_rutas)
